@@ -1,0 +1,796 @@
+Source URL: https://bitbucket.org/dhildreth/canon_webview
+Source Git: https://bitbucket.org/dhildreth/canon_webview.git
+================================================================================
+FILES:
+================================================================================
+There are four main programs and one API that each uses:
+   * include/webview.py - Main API which utilizes Canon WebView HTTP Specs
+   * webview_control.py - Demonstrates how to control the webcam using wvhttp
+   * webview_control_compat.py - Same as above, but with older, compat commands
+   * webview_stats.py - Demonstrates how to access admin syslogs and write to DB
+   * webview_360.py - Demonstrates how to create images for 360 panoramic
+
+The directory structure is as follows:
+   canon_webview/
+   |-- README
+   |-- images
+   |   |-- 360
+   |   |   |-- README
+   |   |-- README
+   |   |-- create_gif.sh
+   |-- include
+   |   |-- __init__.py
+   |   |-- webview.py
+   |-- logs
+   |   `-- README
+   |-- webview_360.py
+   |-- webview_control.py
+   |-- webview_control_compat.py
+   |-- webview_stats.py
+
+
+================================================================================
+EXAMPLE USAGE AND DESCRIPTION:
+================================================================================
+usage: webview_control.py [options] hostname
+
+webview_control.py allows you to programmically connect with and control a
+Canon Network Web Cam using their WebView HTTP Specs (wvhttp).
+webview_control.py is able to connect with at least the following: Canon
+VB-C60, VB-C500D/VD, VB-C300, VB-C50i/R, or VB-C50Fi/FSi.  See README for more
+information.
+
+options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -u USERNAME, --username=USERNAME
+                        Username to connect with
+  -p PASSWORD, --password=PASSWORD
+                        Password to connect with
+  -f FILENAME, --filename=FILENAME
+                        Write output to this filename ("webview" by default)
+  --video=VIDEO         Video mode for camera
+  --preset-list=PRESET_LIST
+                        Move camera to preset positions in this list
+  --position=POSITION   Move camera to this position (pan, tilt, zoom)
+
+================================================================================
+WEBVIEW MODULE API
+================================================================================
+NAME
+    webview
+
+FILE
+    /home1/derekhil/canon_webview/include/webview.py
+
+CLASSES
+    __builtin__.dict(__builtin__.object)
+        defaultdict
+    __builtin__.object
+        WebViewStatDB
+        WebViewTop
+            WebView
+            WebViewAdmin
+            WebViewCompat
+    exceptions.Exception
+        CustomException
+            ConnectionError
+            OpenError
+    
+    class ConnectionError(CustomException)
+     |  Raised when there is a general problem with the connection.
+     |  
+     |  Method resolution order:
+     |      ConnectionError
+     |      CustomException
+     |      exceptions.Exception
+     |  
+     |  Methods inherited from CustomException:
+     |  
+     |  __init__(self, _msg)
+     |  
+     |  __str__(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from exceptions.Exception:
+     |  
+     |  __getitem__(...)
+    
+    class CustomException(exceptions.Exception)
+     |  Handles custom exception messages for WebView classes.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, _msg)
+     |  
+     |  __str__(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from exceptions.Exception:
+     |  
+     |  __getitem__(...)
+    
+    class OpenError(CustomException)
+     |  Raised when there is a problem opening the session.
+     |  
+     |  Method resolution order:
+     |      OpenError
+     |      CustomException
+     |      exceptions.Exception
+     |  
+     |  Methods inherited from CustomException:
+     |  
+     |  __init__(self, _msg)
+     |  
+     |  __str__(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from exceptions.Exception:
+     |  
+     |  __getitem__(...)
+    
+    class WebView(WebViewTop)
+     |  Contains methods for connecting, managing sessions, and controlling
+     |  a Canon network camera using the WV-HTTP New Commands Specifications.
+     |  (firmware update may be required to use these methods;  Otherwise use 
+     |  the older "compatible commands" in the WebViewCompat object). 
+     |  
+     |  Compatible with:
+     |  VB-C60, ... 
+     |  
+     |  Usage Example:
+     |      from include.webview import WebView
+     |      webobject = WebView(host='web.com', username='foo', password='bar')
+     |      webobject.open(video='jpg:640x480:3:30000')
+     |      image = webobject.image()
+     |      output = open("webview_image.jpg", "w")
+     |      output.write(image)
+     |      output.close()
+     |      webobject.close()
+     |  
+     |  For more information, refer to the HTTP WebView Protocol Spec
+     |  http://scribd.com/doc/39808868/YT1-1019-001-HTTPWebViewProtocolSpecs
+     |  
+     |  Method resolution order:
+     |      WebView
+     |      WebViewTop
+     |      __builtin__.object
+     |  
+     |  Methods defined here:
+     |  
+     |  claim_control(self)
+     |      This function requests camera control privileges. The control
+     |      privilege allocation time is determined by the session's priority
+     |      level, with privileged sessions unlimited, andothers set to a
+     |      finite value (the set value).
+     |      
+     |      Raw HTML Returns:
+     |      s.control:=(...)
+     |         (If the state of control privileges has changed)
+     |            enabled:<allocated time>  (control right secured)
+     |            waiting:<waiting time>    (waiting to secure control right)
+     |         (If the state of control privileges has not changed)
+     |            enabled:<allocated time>  (control right secured)
+     |            waiting:<waiting time>    (waiting to secure control right)
+     |            disabled  (failed to secure control privilege)
+     |  
+     |  close(self)
+     |      This function deletes the WV-HTTP session.
+     |      
+     |      Raw HTML Returns:
+     |      OK.
+     |  
+     |  control(self, use_session_id=True, pan='', tilt='', zoom='', priority='', camera_number='', exposure='', day_night_mode='', day_night_switching_mode='', ae_slow_shutter='', ae_shutter_speed='', ae_brightness='', ae_metering='', me_shutter='', me_agc_gain='', white_balance='', wb_rb_gain='', image_stabilization='', noise_reduction='', aperature_correction='', shade_correction='', shade_correction_param='', focus_mode='', focus_value='', zoom_speed='', zoom_operational_speed_pos='', zoom_operational_speed_tele='', pan_speed='', pan_operational_speed_pan='', pan_operational_speed_lr='', specify_tilt_pos_dir='', tilt_operational_speed_pos='', tilt_operational_speed_tilt='', view_restriction='', external_output_control='')
+     |      This function controls the camera and external output
+     |      terminal. When the external output terminal is to be controlled
+     |      (along with everything but pan, tilt, and zoom speed),camera
+     |      control privileges are necessary (a 301 error occurs if camera
+     |      control privileges cannot be secured). If camera control privileges
+     |      are necessary, operations will differ as follows, depending on
+     |      whether or not a session identifier is specified.
+     |  
+     |  get_camera_open_results(self)
+     |      Return dictionary of information on camera open.
+     |  
+     |  get_claim_control_results(self)
+     |      Return a dictionary type of information reguarding claim control.
+     |  
+     |  get_readable_presets(self)
+     |      Print a human readable list of presets available.
+     |  
+     |  get_session_results(self)
+     |      Return dictionary object of information on session.
+     |  
+     |  get_yield_control_results(self)
+     |      Return dictionary object of information on yield control.
+     |  
+     |  image(self, use_session_id=True, video='', pan='', tilt='', zoom='')
+     |      This function requests a JPEG still image. Operations differ
+     |      as follows, depending onwhether or not a session identifier
+     |      is specified:
+     |      
+     |      * When the session identifier is specified: The session's
+     |        video stream setting is used.
+     |      
+     |      * If, however, the type of the video stream set is mp4, then
+     |        a usable jpg stream will be selected, and the session's video
+     |        stream setting will be changed. This command is prohibited during
+     |        the transmission of a video stream using video.cgi (this will
+     |        result in a 408 error). Camera control parameters are ignored.
+     |      
+     |      * When the session identifier is not specified: Selection
+     |        will be made based on the video stream specifier v. Camera
+     |        control parameters can be used to specify the shooting position
+     |        (note: this will be ignored if the control privilege cannot
+     |        be secured).
+     |      
+     |      Although it is up to the application to decide how
+     |      to differentiate when using these, the method for specifying the
+     |      session identifier is suited for use in displaying a pseudo
+     |      video by repeatedly sending JPEG still images. To retrieve a
+     |      single JPEG still image alone, you can use image.cgi without
+     |      specifying a session identifier.
+     |      
+     |      Will return 408 error if video is used at the same time.
+     |  
+     |  info(self, use_session_id=True, item='', v_type='', timeout='')
+     |      This function retrieves various types of
+     |      information. Operations differ as follows, depending on whether
+     |      or not a session identifier is specified.
+     |  
+     |  open(self, video='', priority='')
+     |      This function creates a WV-HTTP session. When creating a
+     |      privileged session, specify the priority with "priority". This
+     |      priority level is used for access management, control privileges
+     |      management, and so on. Session life spans differ depending on
+     |      the priority, with privileged sessions (those with a priority of 5
+     |      or higher) unlimited, and general sessions (those with a priority
+     |      of 0) limited to the maximum connection time (the set value).
+     |      
+     |      Maximum connections limit exceeded: 503 error
+     |      
+     |      Raw HTML Returns:
+     |          s:=<session identifier>
+     |          s.origin:=<camera address>:<HTTP port>
+     |          s.duration==<time remaining in the session>
+     |          s.priority:=<session priority level>
+     |          v:=<video stream>
+     |      
+     |          s:=eaea-8e04c059
+     |          s.origin:=192.168.0.2:1024
+     |          s.duration==3600
+     |          s.priority:=0
+     |          v:=jpg:640x480:3:30000
+     |  
+     |  panorama(self, use_session_id=True, panorama='')
+     |      This function retrieves panorama image data. If there is no
+     |      session specification, then this is limited to administrators.
+     |  
+     |  select_preset(self, preset_no)
+     |      Select a preset built-into the camera.
+     |  
+     |  session(self, video='', priority='')
+     |      This function retrieves or changes session-specific
+     |      attributes. The currently supportedsession-specific attributes
+     |      are priority level and video stream.  The details of a changed 
+     |      item will be notified as an event in info.
+     |      
+     |      Raw HTML Returns:
+     |      s.priority:=<new priority level>
+     |      v:=<new video stream>
+     |  
+     |  video(self, use_session_id=True, video='', duration='', v_type='')
+     |      This function requests transmission of the video
+     |      stream. Operations differ as follows, depending on whether or
+     |      not a session identifier is specified:
+     |      
+     |      * When the session identifier is specified: The session's video stream
+     |        setting is used. This command is prohibited during the transmission of
+     |        a video stream or a JPEG still image (image.cgi) (this will result
+     |        in a 408 error). The transmission process will continue until either 
+     |        the session ends or the client cuts the connection.
+     |      
+     |      * When the session identifier is not specified: Selection will be made
+     |        based on the video stream specifier v. The transmission process will
+     |        continue until either the period specified by duration comes to an 
+     |        end, or the client cuts the connection.
+     |      
+     |      The video stream can use type to specify the transmission control
+     |      method (buffering policy). The transmission control method and the
+     |      session identifier specification are unrelated to each other.
+     |  
+     |  yield_control(self)
+     |      This function releases camera control privileges, or cancels the 
+     |      state of waiting for camera control privileges.
+     |      
+     |      Raw HTML Returns:
+     |      s.control:=(...) 
+     |         (If the state of control privileges has changed)
+     |            disabled   (will also be notified as an event from info.cgi)
+     |         (If the state of control privileges has not changed)
+     |            disabled
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from WebViewTop:
+     |  
+     |  __init__(self, host, username='', password='')
+     |      Initial setup for when the class object is instantiated.  The
+     |      hostname is required. If a username or password is supplied, then 
+     |      the WebView object will automatically create an opener that knows 
+     |      how to login.
+     |  
+     |  create_opener(self)
+     |      Create an url opener that will know how to login.
+     |  
+     |  grab_url(self, url, return_type=False)
+     |      Grab the raw page contents and mime-type of the given url.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes inherited from WebViewTop:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'WebViewTop' objects>
+     |      list of weak references to the object (if defined)
+    
+    class WebViewAdmin(WebViewTop)
+     |  Contains methods for retrieving data from the Canon WebView Settings
+     |  pages.
+     |  
+     |  Usage Example:
+     |      from include.webview import WebViewAdmin
+     |      webobject = WebViewAdmin(host='web.com', username='root', \
+     |                               password='bar')
+     |      logs = webobject.AdminSysLog()
+     |      output = open("webview_logs.txt", "w")
+     |      output.write(logs)
+     |      output.close()
+     |  
+     |  Method resolution order:
+     |      WebViewAdmin
+     |      WebViewTop
+     |      __builtin__.object
+     |  
+     |  Methods defined here:
+     |  
+     |  AdminFileData(self, path='')
+     |      Grab the raw file data from a given file on the filesystem.
+     |  
+     |  AdminSysLog(self)
+     |      Obtain the access logs of the webcam.
+     |  
+     |  get_user_summary(self)
+     |      Display the users for the month passed in.  Use 'all' for all months.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from WebViewTop:
+     |  
+     |  __init__(self, host, username='', password='')
+     |      Initial setup for when the class object is instantiated.  The
+     |      hostname is required. If a username or password is supplied, then 
+     |      the WebView object will automatically create an opener that knows 
+     |      how to login.
+     |  
+     |  create_opener(self)
+     |      Create an url opener that will know how to login.
+     |  
+     |  grab_url(self, url, return_type=False)
+     |      Grab the raw page contents and mime-type of the given url.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes inherited from WebViewTop:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'WebViewTop' objects>
+     |      list of weak references to the object (if defined)
+    
+    class WebViewCompat(WebViewTop)
+     |  Contains methods for connecting, managing sessions, and controlling
+     |  a Canon network camera using the WV-HTTP Compatible Commands 
+     |  Specifications. These are functionally compatible with the WV-HTTP 
+     |  of VB-C300 or VB-C50i, and which are a subset of the new commands in
+     |  terms of details.
+     |  
+     |  Compatible with:
+     |  VB-C50i/VB-C50iR, VB-C300, ... 
+     |  
+     |  Usage Example:
+     |      from include.webview import WebViewCompat
+     |      webobject = WebViewCompat(host='web.com', username='foo', \
+     |                                password='bar')
+     |      webobject.OpenCameraServer(video='jpg:640x480:3:30000')
+     |      image = webobject.GetLiveImage()
+     |      output = open("webview_image.jpg", "w")
+     |      output.write(image)
+     |      output.close()
+     |      webobject.CloseCameraServer()
+     |  
+     |  For more information, refer to the HTTP WebView Protocol Spec
+     |  http://scribd.com/doc/39808868/YT1-1019-001-HTTPWebViewProtocolSpecs
+     |  
+     |  Method resolution order:
+     |      WebViewCompat
+     |      WebViewTop
+     |      __builtin__.object
+     |  
+     |  Methods defined here:
+     |  
+     |  ChangeImageSize(self, image_size='')
+     |      This function switches to the JPEG stream specified with
+     |      v|image_size. This is effective in cases where JPEG streams with
+     |      multiple sizes can be used.
+     |  
+     |  CloseCameraServer(self)
+     |      This function deletes the WV-HTTP session.
+     |      
+     |      Raw HTML Returns:
+     |      OK.
+     |  
+     |  ExternalIO(self, output='')
+     |      This function controls the external output terminal. Only
+     |      privileged users (administrators and privileged users) can use
+     |      this command.
+     |  
+     |  ExternalIOCaption(self, language='', character_set='')
+     |      This function retrieves the external input/output name.
+     |  
+     |  ExternalIOConfig(self, use_session_id=True)
+     |      This function queries whether or not there is external input/output
+     |      terminal information and a motion detection function.
+     |  
+     |  GetCameraControl(self)
+     |      This function requests camera control privileges. The control
+     |      privileges allocation time is determined by the session's
+     |      priority level, with privileged sessions unlimited, andothers
+     |      set to a finite value (the set value).  Refer to GetNotice for 
+     |      event information.
+     |  
+     |  GetCameraInfo(self, camera_id='', item='')
+     |      This function retrieves camera information.
+     |  
+     |  GetCameraInfoEx(self, camera_id='', item='')
+     |      This function retrieves extended camera information.
+     |  
+     |  GetCameraList(self, language='', character_set='')
+     |      This function retrieves the camera list (the number of cameras
+     |      and camera names).
+     |  
+     |  GetCameraServerInfo(self)
+     |      This function retrieves camera server information.
+     |  
+     |  GetLiveImage(self, timeout='')
+     |      This function retrieves JPEG data. A serial number starting
+     |      with 1 (Livescope-Frame-Number header field) is appended to the
+     |      JPEG data.  Timeout cannot be used with the VB-C60.
+     |  
+     |  GetNotice(self, notice='', timeout='')
+     |      This function waits for an event to occur, and then retrieves
+     |      this event. When an event occurs, the event number is notified with
+     |      the Livescope-Notice header field, and detailed event information
+     |      is notified with the message body. If no event to be notified
+     |      occurs within the prescribed time, then a 404 Operation Timeout
+     |      error will occur. The timeout parameter can be used to specify
+     |      the timeout time.
+     |  
+     |  GetOneShot(self, image_size='', frame_rate='', frame_count='')
+     |      This function retrieves a JPEG data stream in multi-part
+     |      format. When multiple framesare specified, the maximum connection
+     |      time is the limit (although privileged users, which are identified
+     |      with the HTTP request's header field Authorization, have no
+     |      time limit).
+     |  
+     |  GetPTZSpeedInfo(self, camera_id='')
+     |      This function retrieves the pan, tilt, and zoom movement
+     |      speed and range. The position specification speed is used in the
+     |      position specification of OperateCamera, etc., and the operation
+     |      specification speed is used in the operation specification
+     |      of OperateCameraEx. For VB-C500, it retrieves zoom movement
+     |      speed and range only because VB-C500 does not support pan and
+     |      tilt control.
+     |  
+     |  GetPanoramaImage(self, use_session_id=True, panorama_id='', camera_id='')
+     |      This function retrieves panorama image data. If there is no
+     |      session specification, thenthis is limited to administrators.
+     |  
+     |  GetPanoramaInfo(self, panorama_id='', camera_id='', item='')
+     |      This function retrieves panorama image information.
+     |  
+     |  GetPanoramaList(self, item='')
+     |      This function retrieves the panorama image list.
+     |  
+     |  GetPresetList(self, language='', character_set='')
+     |      This function retrieves the preset list (the number of presets,
+     |      preset names, and the,camera control parameter).
+     |  
+     |  GetProtocolVersion(self)
+     |      This function retrieves the WV-HTTP protocol version.
+     |  
+     |  GetSystemInfo(self, item='')
+     |      This function retrieves system information.
+     |  
+     |  GetVideoInfo(self, use_session_id=True, item='')
+     |      Grab the page contents containg webcam system information.
+     |  
+     |  NightMode(self, camera_id='', night_mode='')
+     |      This function retrieves and controls the night mode state. Only
+     |      privileged users(administrator and privileged users) can use
+     |      this command. Also, only cameras thatsupport night mode can
+     |      use this.
+     |  
+     |  OpenCameraServer(self, priority='', video='', vc_host='')
+     |      This function creates a WV-HTTP session. When creating a
+     |      privileged session,specify the priority with "priority". This
+     |      priority level is used for access management, control privilege
+     |      management, and so on. Session life spans differ depending on
+     |      thepriority, with privileged sessions (those with a priority of 5
+     |      or higher) unlimited, andgeneral sessions (those with a priority
+     |      of 0) limited to the maximum connection time (theset value).
+     |  
+     |  OperateCamera(self, p='', t='', z='', pan='', tilt='', zoom='', focus_mode='', focus_value='', back_light='')
+     |      This function switches and controls the camera (pan, tilt,
+     |      zoom, focus, and backlight correction). For VB-C500, only camera
+     |      control is available (zoom, backlight compensation) because
+     |      VB-C500 does not support pan, tilt and focus.
+     |  
+     |  OperateCameraOnScreen(self, pan='', tilt='')
+     |      This function controls the camera (pan and tilt). For VB-C500,
+     |      it always returns error messages to the OperateCameraOnScreen
+     |      command, because VB-C500 does not support pan and tilt control.
+     |  
+     |  Priority(self, priority='')
+     |      This function specifies the session's priority level.
+     |  
+     |  ReleaseCameraControl(self)
+     |      This function releases camera control privileges, or cancels
+     |      the state of waiting forcamera control privileges. If the control
+     |      privileges have not been secured, then a 301 error will result.
+     |  
+     |  SelectCamera(self, camera_id='')
+     |      This function switches the camera.
+     |  
+     |  get_camera_model(self)
+     |      Parses through data from GetProtocolVersion
+     |  
+     |  get_open_camera_server_results(self)
+     |      Parses through results from OpenCameraServer
+     |  
+     |  get_priority_results(self)
+     |      Parses through results from Priority
+     |  
+     |  select_preset(self, preset_no, print_names=False)
+     |      Select a preset built-into the camera.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from WebViewTop:
+     |  
+     |  __init__(self, host, username='', password='')
+     |      Initial setup for when the class object is instantiated.  The
+     |      hostname is required. If a username or password is supplied, then 
+     |      the WebView object will automatically create an opener that knows 
+     |      how to login.
+     |  
+     |  create_opener(self)
+     |      Create an url opener that will know how to login.
+     |  
+     |  grab_url(self, url, return_type=False)
+     |      Grab the raw page contents and mime-type of the given url.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes inherited from WebViewTop:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'WebViewTop' objects>
+     |      list of weak references to the object (if defined)
+    
+    class WebViewStatDB(__builtin__.object)
+     |  Class for inserting an entry into the DB for stat tracking.  Only
+     |  tested on a un/pw protected webcam where username shows up in the 
+     |  syslog.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, _host, _un, _pw, _db, _table)
+     |      Initially establish conneciton with DB.
+     |  
+     |  add_stats_to_db(self, user, visited, ip)
+     |      Will insert the user visited entry if doesn't exist
+     |  
+     |  reset_db(self)
+     |      CAUTION: Will reset the database!
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'WebViewStatDB' objects>
+     |      list of weak references to the object (if defined)
+    
+    class WebViewTop(__builtin__.object)
+     |  Defines a set of commands that are used in WebView classes
+     |  which inherit this class.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, host, username='', password='')
+     |      Initial setup for when the class object is instantiated.  The
+     |      hostname is required. If a username or password is supplied, then 
+     |      the WebView object will automatically create an opener that knows 
+     |      how to login.
+     |  
+     |  create_opener(self)
+     |      Create an url opener that will know how to login.
+     |  
+     |  grab_url(self, url, return_type=False)
+     |      Grab the raw page contents and mime-type of the given url.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'WebViewTop' objects>
+     |      list of weak references to the object (if defined)
+    
+    class defaultdict(__builtin__.dict)
+     |  Method resolution order:
+     |      defaultdict
+     |      __builtin__.dict
+     |      __builtin__.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __copy__(self)
+     |  
+     |  __deepcopy__(self, memo)
+     |  
+     |  __getitem__(self, key)
+     |  
+     |  __init__(self, default_factory=None, *a, **kw)
+     |  
+     |  __missing__(self, key)
+     |  
+     |  __reduce__(self)
+     |  
+     |  __repr__(self)
+     |  
+     |  copy(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  __dict__ = <dictproxy object>
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__ = <attribute '__weakref__' of 'defaultdict' objects>
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from __builtin__.dict:
+     |  
+     |  __cmp__(...)
+     |      x.__cmp__(y) <==> cmp(x,y)
+     |  
+     |  __contains__(...)
+     |      D.__contains__(k) -> True if D has a key k, else False
+     |  
+     |  __delitem__(...)
+     |      x.__delitem__(y) <==> del x[y]
+     |  
+     |  __eq__(...)
+     |      x.__eq__(y) <==> x==y
+     |  
+     |  __ge__(...)
+     |      x.__ge__(y) <==> x>=y
+     |  
+     |  __getattribute__(...)
+     |      x.__getattribute__('name') <==> x.name
+     |  
+     |  __gt__(...)
+     |      x.__gt__(y) <==> x>y
+     |  
+     |  __hash__(...)
+     |      x.__hash__() <==> hash(x)
+     |  
+     |  __iter__(...)
+     |      x.__iter__() <==> iter(x)
+     |  
+     |  __le__(...)
+     |      x.__le__(y) <==> x<=y
+     |  
+     |  __len__(...)
+     |      x.__len__() <==> len(x)
+     |  
+     |  __lt__(...)
+     |      x.__lt__(y) <==> x<y
+     |  
+     |  __ne__(...)
+     |      x.__ne__(y) <==> x!=y
+     |  
+     |  __setitem__(...)
+     |      x.__setitem__(i, y) <==> x[i]=y
+     |  
+     |  clear(...)
+     |      D.clear() -> None.  Remove all items from D.
+     |  
+     |  get(...)
+     |      D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.
+     |  
+     |  has_key(...)
+     |      D.has_key(k) -> True if D has a key k, else False
+     |  
+     |  items(...)
+     |      D.items() -> list of D's (key, value) pairs, as 2-tuples
+     |  
+     |  iteritems(...)
+     |      D.iteritems() -> an iterator over the (key, value) items of D
+     |  
+     |  iterkeys(...)
+     |      D.iterkeys() -> an iterator over the keys of D
+     |  
+     |  itervalues(...)
+     |      D.itervalues() -> an iterator over the values of D
+     |  
+     |  keys(...)
+     |      D.keys() -> list of D's keys
+     |  
+     |  pop(...)
+     |      D.pop(k[,d]) -> v, remove specified key and return the corresponding value
+     |      If key is not found, d is returned if given, otherwise KeyError is raised
+     |  
+     |  popitem(...)
+     |      D.popitem() -> (k, v), remove and return some (key, value) pair as a
+     |      2-tuple; but raise KeyError if D is empty
+     |  
+     |  setdefault(...)
+     |      D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D
+     |  
+     |  update(...)
+     |      D.update(E, **F) -> None.  Update D from E and F: for k in E: D[k] = E[k]
+     |      (if E has keys else: for (k, v) in E: D[k] = v) then: for k in F: D[k] = F[k]
+     |  
+     |  values(...)
+     |      D.values() -> list of D's values
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes inherited from __builtin__.dict:
+     |  
+     |  __new__ = <built-in method __new__ of type object>
+     |      T.__new__(S, ...) -> a new object with type S, a subtype of T
+     |  
+     |  fromkeys = <built-in method fromkeys of type object>
+     |      dict.fromkeys(S[,v]) -> New dict with keys from S and values equal to v.
+     |      v defaults to None.
+
+FUNCTIONS
+    make_url_params(params)
+        Create a URL for use with webview command specifications. Will ignore 
+        blank values.
+    
+    timestamp()
+        Return the current timestamp.
+    
+    write_to_file(filename, return_data, mime_type='')
+        Write the data of the recently grabbed url to disk, while trying to
+        be smart about file extensions if we need to be.
+
+DATA
+    DESCRIPTION = '%prog allows you to programmically connect with ...r VB...
+    USAGE = '%prog [options] hostname'
+    VERSION = '%prog v1.0'
+    __author__ = 'Derek Hildreth'
+    __author_email__ = 'derek@derekhildreth.com'
+    __version__ = '1.0'
+
+VERSION
+    1.0
+
+AUTHOR
+    Derek Hildreth
